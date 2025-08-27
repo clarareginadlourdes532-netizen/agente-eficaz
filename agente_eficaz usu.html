@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agente Eficaz</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: sans-serif; background-color: #FBCFE8; padding: 20px; }
+header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+header h1 { font-size: 2rem; font-weight: bold; color: #BE185D; }
+nav { display: flex; gap: 10px; flex-wrap: wrap; }
+button { padding: 8px 16px; border-radius: 1rem; border: none; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); font-weight: bold; }
+button.dashboard, button.materiais, button.desperdicios, button.perfil, button.grafico { background-color: #EC4899; color: white; }
+button.descartar { background-color: #DC2626; color: white; }
+.card { background-color: white; border-radius: 1.5rem; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+th, td { border: 1px solid #D1D5DB; padding: 8px; text-align: left; }
+thead { background-color: #F9A8D4; }
+tr.expired { background-color: #FEE2E2; }
+tr.soon { background-color: #FEF3C7; }
+input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 8px; border-radius: 0.5rem; border: 1px solid #D1D5DB; margin-bottom: 10px; }
+.grid-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+#login-screen { background-color: white; padding: 20px; border-radius: 1.5rem; max-width: 400px; margin: 50px auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <h2>Bem-vindo ao Agente Eficaz</h2>
+  <form id="login-form">
+    <input type="text" id="user-name" placeholder="Digite seu nome" required>
+    <select id="user-role" required>
+      <option value="">Selecione seu cargo</option>
+      <option value="Estudante">Estudante</option>
+      <option value="Profissional da Saúde">Profissional da Saúde</option>
+    </select>
+    <button type="submit">Acessar</button>
+  </form>
+</div>
+
+<header style="display:none;">
+  <h1>Agente Eficaz</h1>
+  <nav>
+    <button class="dashboard" onclick="showPage('dashboard')">Dashboard</button>
+    <button class="materiais" onclick="showPage('materiais')">Materiais</button>
+    <button class="desperdicios" onclick="showPage('desperdicios')">Desperdícios</button>
+    <button class="perfil" onclick="showPage('perfil')">Perfil</button>
+    <button class="grafico" onclick="showPage('grafico')">Gráfico</button>
+  </nav>
+</header>
+
+<main id="app"></main>
+
+<script>
+let user = {};
+const materials = [
+  { name: "Seringa", quantity: 10, expiry: "2025-08-28" },
+  { name: "Luvas", quantity: 5, expiry: "2025-08-30" },
+  { name: "Máscara", quantity: 2, expiry: "2025-08-25" }
+];
+const today = new Date();
+
+document.getElementById('login-form').addEventListener('submit', function(e){
+  e.preventDefault();
+  const name = document.getElementById('user-name').value;
+  const role = document.getElementById('user-role').value;
+  user = {name, role};
+  document.getElementById('login-screen').style.display = 'none';
+  document.querySelector('header').style.display = 'flex';
+  showPage('dashboard');
+});
+
+function showPage(page) {
+  const app = document.getElementById("app");
+  app.innerHTML = "";
+  if(page === "dashboard") {
+    const expired = materials.filter(m => new Date(m.expiry) < today);
+    const soon = materials.filter(m => ((new Date(m.expiry)-today)/(1000*60*60*24)) <=5 && ((new Date(m.expiry)-today)/(1000*60*60*24)) >=0);
+    const lowStock = materials.filter(m => m.quantity <=2);
+    const grid = document.createElement("div");
+    grid.className = "grid-dashboard";
+    [{title:"Materiais Vencidos", count: expired.length},
+     {title:"Próximos ao Vencimento", count: soon.length},
+     {title:"Baixo Estoque", count: lowStock.length}].forEach(c=>{
+       const div = document.createElement("div");
+       div.className="card";
+       div.innerHTML = `<h2>${c.title}</h2><p>${c.count} itens</p>`;
+       grid.appendChild(div);
+     });
+    app.appendChild(grid);
+  }
+  if(page === "materiais") {
+    const card = document.createElement("div"); card.className="card";
+    const form = document.createElement("form");
+    form.innerHTML = `<h2>Cadastro de Materiais</h2>
+      <input type="text" name="name" placeholder="Nome do material" required />
+      <input type="number" name="quantity" placeholder="Quantidade" required />
+      <input type="date" name="expiry" required />
+      <button type="submit" class="materiais">Adicionar</button>`;
+    form.onsubmit = function(e){ e.preventDefault(); materials.push({name: form.name.value, quantity: parseInt(form.quantity.value), expiry: form.expiry.value}); form.reset(); showPage("materiais"); };
+    card.appendChild(form);
+    const table = document.createElement("table");
+    table.innerHTML = `<thead><tr><th>Material</th><th>Quantidade</th><th>Validade</th><th>Ações</th></tr></thead>
+      <tbody>${materials.map((m,i)=>{const d = new Date(m.expiry); const cls = d<today?"expired":((d-today)/(1000*60*60*24)<=5?"soon":""); return `<tr class="${cls}"><td>${m.name}</td><td>${m.quantity}</td><td>${m.expiry}</td><td><button class="descartar" onclick="materials.splice(${i},1);showPage('materiais')">Descartar</button></td></tr>`;}).join("")}</tbody>`; 
+    card.appendChild(table);
+    app.appendChild(card);
+  }
+  if(page==="desperdicios") {
+    const card = document.createElement("div"); card.className="card";
+    const expiredCount = materials.filter(m=>new Date(m.expiry)<today).reduce((acc,m)=>acc+m.quantity,0);
+    card.innerHTML = `<h2>Controle de Desperdícios</h2><p>Total de itens vencidos: ${expiredCount}</p><p>Sugestão: Ajustar próximos lotes para reduzir desperdício.</p>`;
+    app.appendChild(card);
+  }
+  if(page==="perfil") {
+    const card = document.createElement("div"); card.className="card";
+    card.innerHTML = `<h2>Perfil do Colaborador</h2><p>Nome: ${user.name}</p><p>Cargo: ${user.role}</p>`;
+    app.appendChild(card);
+  }
+  if(page==="grafico") {
+    const card = document.createElement("div"); card.className="card";
+    card.innerHTML = '<h2>Distribuição de Materiais</h2><canvas id="pieChart" width="400" height="400"></canvas>';
+    app.appendChild(card);
+    const ctx = document.getElementById('pieChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: materials.map(m => m.name),
+        datasets: [{
+          label: 'Quantidade',
+          data: materials.map(m => m.quantity),
+          backgroundColor: ['#EC4899','#F472B6','#FBCFE8','#DB2777','#BE185D'],
+        }]
+      }
+    });
+  }
+}
+</script>
+
+</body>
+</html>
